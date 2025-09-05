@@ -244,7 +244,6 @@ export class EmailService {
     <div class="container">
         <div class="header">
             <img src="cid:logo" alt="IAM-NET GmbH Logo" />
-            <h1>🚗 IAM-NET GmbH</h1>
             <p>Neue Versionen verfügbar - ${providerName} Provider</p>
         </div>
         
@@ -429,7 +428,6 @@ export class EmailService {
     <div class="container">
         <div class="header">
             <img src="cid:logo" alt="IAM-NET GmbH Logo" />
-            <h1>❌ Login-Fehler</h1>
             <p>${providerName} Provider - Authentifizierung fehlgeschlagen</p>
         </div>
         

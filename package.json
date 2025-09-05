@@ -20,7 +20,9 @@
     "web:test": "node test-web.js",
     "web:integrated": "node src/main.js web",
     "debug": "DEBUG=true node src/main.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "test:email": "node test-email.js",
+    "send:email": "node send-test-email.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -30,6 +32,7 @@
     "express": "^4.21.2",
     "express-basic-auth": "^1.2.1",
     "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.7",
     "playwright": "^1.40.0",
     "winston": "^3.11.0"
   },

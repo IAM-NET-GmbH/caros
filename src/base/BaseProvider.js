@@ -5,6 +5,7 @@ import { createWriteStream } from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { MetadataManager } from '../utils/MetadataManager.js';
+import { EmailService } from '../utils/EmailService.js';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,7 @@ export class BaseProvider {
     this.isLoggedIn = false;
     this.metadata = {};
     this.metadataManager = new MetadataManager(this.baseDownloadDir);
+    this.emailService = new EmailService();
     
     // Configure logger
     this.logger = winston.createLogger({
@@ -412,6 +414,25 @@ export class BaseProvider {
     }
 
     return version !== lastVersion;
+  }
+
+  async sendNewVersionNotification(updates) {
+    if (!updates || updates.length === 0) {
+      return;
+    }
+
+    try {
+      this.logger.info(`📧 Sende E-Mail-Benachrichtigung für ${updates.length} neue Version(en)`);
+      const success = await this.emailService.sendNewVersionNotification(this.providerName, updates);
+      
+      if (success) {
+        this.logger.info('✅ E-Mail-Benachrichtigung erfolgreich gesendet');
+      } else {
+        this.logger.warn('⚠️ E-Mail-Benachrichtigung konnte nicht gesendet werden');
+      }
+    } catch (error) {
+      this.logger.error('❌ Fehler beim Senden der E-Mail-Benachrichtigung:', error);
+    }
   }
 
   async cleanup() {

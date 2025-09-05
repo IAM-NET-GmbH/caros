@@ -394,6 +394,8 @@ export class BMWProvider extends BaseProvider {
     if (updates.length > 0) {
       this.logger.info(`📥 ${updates.length} Updates für ${appName} werden heruntergeladen...`);
       
+      const successfulUpdates = [];
+      
       for (let i = 0; i < updates.length; i++) {
         const update = updates[i];
         this.logger.info(`📥 Download ${i + 1}/${updates.length}: ${update.displayName}`);
@@ -402,6 +404,7 @@ export class BMWProvider extends BaseProvider {
           const success = await this.downloadFile(update);
           if (success) {
             successCount++;
+            successfulUpdates.push(update);
           } else {
             failCount++;
           }
@@ -419,6 +422,11 @@ export class BMWProvider extends BaseProvider {
       }
       
       this.logger.info(`📊 ${appName} Download-Statistik: ${successCount} erfolgreich, ${failCount} fehlgeschlagen`);
+      
+      // Send email notification for successful downloads
+      if (successfulUpdates.length > 0) {
+        await this.sendNewVersionNotification(successfulUpdates);
+      }
       
     } else {
       this.logger.info(`✅ Keine Updates für ${appName} verfügbar`);

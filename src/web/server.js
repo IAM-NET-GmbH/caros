@@ -145,6 +145,19 @@ class WebServer {
       res.json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
+    // Logo Route
+    this.app.get('/logo.jpg', async (req, res) => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const logoPath = path.join(process.cwd(), 'logo.jpg');
+      
+      if (fs.existsSync(logoPath)) {
+        res.sendFile(logoPath);
+      } else {
+        res.status(404).send('Logo nicht gefunden');
+      }
+    });
+
     this.app.get('/api/next-check', (req, res) => {
       res.json({
         nextCheckTime: this.nextCheckTime?.toISOString(),
@@ -561,6 +574,45 @@ class WebServer {
       }
     });
 
+    // E-Mail Test Route
+    this.app.post('/api/test-email', async (req, res) => {
+      try {
+        const { EmailService } = await import('../utils/EmailService.js');
+        const emailService = new EmailService();
+        
+        // Test connection
+        const connectionTest = await emailService.testConnection();
+        
+        if (connectionTest.success) {
+          // Send test email with sample data
+          const testUpdates = [{
+            displayName: 'Test Update',
+            version: '1.0.0',
+            category: 'test',
+            fileSize: 1024000,
+            fileName: 'test-file.exe'
+          }];
+          
+          const emailSent = await emailService.sendNewVersionNotification('test', testUpdates);
+          
+          res.json({
+            success: true,
+            message: 'E-Mail-Test erfolgreich',
+            connection: connectionTest.message,
+            emailSent: emailSent
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            message: 'E-Mail-Verbindung fehlgeschlagen',
+            error: connectionTest.message
+          });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Hauptseite
     this.app.get('/', (req, res) => {
       res.send(this.getDashboardHTML());
@@ -649,7 +701,7 @@ class WebServer {
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             color: #333;
         }
@@ -1355,7 +1407,7 @@ class WebServer {
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚗 IAM-NET GmbH Fileserver</h1>
+            <img src="/logo.jpg" alt="IAM-NET GmbH" style="max-height: 80px; margin-bottom: 15px;">
             <p>Überwachung und Verwaltung der Provider-Downloads</p>
         </div>
         
@@ -1365,6 +1417,7 @@ class WebServer {
                 <button class="control-btn" onclick="triggerCheck()">🔍 Alle Provider Checken</button>
                 <button class="control-btn" onclick="triggerCheck('bmw')">🚗 BMW Checken</button>
                 <button class="control-btn" onclick="triggerCheck('vw')">🚙 VW Checken</button>
+                <button class="control-btn" onclick="testEmail()">📧 E-Mail Test</button>
             </div>
         </div>
         
@@ -1833,6 +1886,28 @@ class WebServer {
             }, 5000);
         }
 
+        async function testEmail() {
+            try {
+                showNotification('📧 Teste E-Mail-Verbindung...', 'info');
+                
+                const response = await fetch('/api/test-email', { method: 'POST' });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('✅ E-Mail-Test erfolgreich! Test-E-Mail wurde gesendet.', 'success');
+                } else {
+                    showNotification('❌ E-Mail-Test fehlgeschlagen: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('E-Mail-Test Fehler:', error);
+                showNotification('❌ E-Mail-Test Fehler: ' + error.message, 'error');
+            }
+        }
 
         async function loadLogs() {
             try {

@@ -1528,6 +1528,18 @@ class WebServer {
             try {
                 // Lade Status-Daten
                 const statusResponse = await fetch('/api/status');
+                
+                // Prüfe HTTP-Status
+                if (!statusResponse.ok) {
+                    throw new Error('HTTP ' + statusResponse.status + ': ' + statusResponse.statusText);
+                }
+                
+                // Prüfe Content-Type
+                const contentType = statusResponse.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                }
+                
                 const statusData = await statusResponse.json();
                 
                 updateStats(statusData);
@@ -1577,6 +1589,18 @@ class WebServer {
         async function loadNextCheckTime() {
             try {
                 const response = await fetch('/api/next-check');
+                
+                // Prüfe HTTP-Status
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                // Prüfe Content-Type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                }
+                
                 const data = await response.json();
                 
                 if (data.nextCheckTimeFormatted) {
@@ -1630,6 +1654,18 @@ class WebServer {
                 for (const provider of providers) {
                     try {
                         const response = await fetch('/api/files/' + provider);
+                        
+                        // Prüfe HTTP-Status
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        }
+                        
+                        // Prüfe Content-Type
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                        }
+                        
                         const data = await response.json();
                         allFiles[provider] = data.files || [];
                     } catch (error) {
@@ -1681,32 +1717,28 @@ class WebServer {
                 return;
             }
             
-            let tableHTML = \`
-                <table class="files-table">
-                    <thead>
-                        <tr>
-                            <th>Dateiname</th>
-                            <th>Größe</th>
-                            <th>Geändert</th>
-                            <th>Aktion</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            \`;
+            let tableHTML = '<table class="files-table">' +
+                '<thead>' +
+                    '<tr>' +
+                        '<th>Dateiname</th>' +
+                        '<th>Größe</th>' +
+                        '<th>Geändert</th>' +
+                        '<th>Aktion</th>' +
+                    '</tr>' +
+                '</thead>' +
+                '<tbody>';
             
             files.forEach(file => {
-                tableHTML += \`
-                    <tr>
-                        <td>\${file.name}</td>
-                        <td>\${file.sizeFormatted}</td>
-                        <td>\${new Date(file.modified).toLocaleString('de-DE')}</td>
-                        <td>
-                            <a href="\${file.downloadUrl}" class="download-btn" download="\${file.name}" target="_blank">
-                                ⬇️ Download
-                            </a>
-                        </td>
-                    </tr>
-                \`;
+                tableHTML += '<tr>' +
+                    '<td>' + file.name + '</td>' +
+                    '<td>' + file.sizeFormatted + '</td>' +
+                    '<td>' + new Date(file.modified).toLocaleString('de-DE') + '</td>' +
+                    '<td>' +
+                        '<a href="' + file.downloadUrl + '" class="download-btn" download="' + file.name + '" target="_blank">' +
+                            '⬇️ Download' +
+                        '</a>' +
+                    '</td>' +
+                '</tr>';
             });
             
             tableHTML += '</tbody></table>';
@@ -1732,7 +1764,20 @@ class WebServer {
                 
                 // Starte Check im Hintergrund (nicht await)
                 fetch(url, { method: 'POST' })
-                    .then(response => response.json())
+                    .then(response => {
+                        // Prüfe HTTP-Status
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        }
+                        
+                        // Prüfe Content-Type
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                        }
+                        
+                        return response.json();
+                    })
                     .then(result => {
                         if (result.success) {
                             showNotification('✅ Check für ' + providerName + ' abgeschlossen', 'success');
@@ -1763,21 +1808,19 @@ class WebServer {
         function showNotification(message, type = 'info') {
             // Erstelle Notification-Element
             const notification = document.createElement('div');
-            notification.style.cssText = \`
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                border-radius: 5px;
-                color: white;
-                font-weight: bold;
-                z-index: 1000;
-                max-width: 300px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                \${type === 'success' ? 'background: #28a745;' : ''}
-                \${type === 'error' ? 'background: #dc3545;' : ''}
-                \${type === 'info' ? 'background: #17a2b8;' : ''}
-            \`;
+            notification.style.cssText = 'position: fixed;' +
+                'top: 20px;' +
+                'right: 20px;' +
+                'padding: 15px 20px;' +
+                'border-radius: 5px;' +
+                'color: white;' +
+                'font-weight: bold;' +
+                'z-index: 1000;' +
+                'max-width: 300px;' +
+                'box-shadow: 0 4px 12px rgba(0,0,0,0.3);' +
+                (type === 'success' ? 'background: #28a745;' : '') +
+                (type === 'error' ? 'background: #dc3545;' : '') +
+                (type === 'info' ? 'background: #17a2b8;' : '');
             notification.textContent = message;
             
             document.body.appendChild(notification);
@@ -1794,6 +1837,18 @@ class WebServer {
         async function loadLogs() {
             try {
                 const response = await fetch('/api/logs');
+                
+                // Prüfe HTTP-Status
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                // Prüfe Content-Type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1841,6 +1896,18 @@ class WebServer {
         async function loadDiskUsage() {
             try {
                 const response = await fetch('/api/disk-usage');
+                
+                // Prüfe HTTP-Status
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                // Prüfe Content-Type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Unerwarteter Content-Type: ' + (contentType || 'unbekannt'));
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1857,13 +1924,11 @@ class WebServer {
                         colorClass = 'text-success';
                     }
                     
-                    diskUsageElement.innerHTML = \`
-                        <div class="disk-usage">
-                            <div class="disk-used \${colorClass}">\${data.used} / \${data.total}</div>
-                            <div class="disk-available">\${data.available} frei</div>
-                            <div class="disk-percent \${colorClass}">\${data.percent}% belegt</div>
-                        </div>
-                    \`;
+                    diskUsageElement.innerHTML = '<div class="disk-usage">' +
+                        '<div class="disk-used ' + colorClass + '">' + data.used + ' / ' + data.total + '</div>' +
+                        '<div class="disk-available">' + data.available + ' frei</div>' +
+                        '<div class="disk-percent ' + colorClass + '">' + data.percent + '% belegt</div>' +
+                    '</div>';
                 } else {
                     document.getElementById('diskUsage').textContent = data.fallback || 'Nicht verfügbar';
                 }

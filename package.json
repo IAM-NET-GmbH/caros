@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/main.js web",
+    "start": "node src/main.js",
+    "start:web": "node src/main.js web",
     "start:providers": "node src/main.js all",
     "start:bmw": "node src/main.js bmw",
     "start:vw": "node src/main.js vw",

@@ -240,6 +240,29 @@ async function main() {
   try {
     await manager.initialize();
     
+    // Wenn kein Command angegeben ist, starte automatisch Web-Server mit Cron-Jobs
+    if (!command) {
+      logger.info('🚀 Starte Car Downloader Manager im Vollmodus...');
+      logger.info('🌐 Starte Web Dashboard mit automatischen Cron-Jobs...');
+      
+      await manager.startWebServer();
+      
+      // Keep the process running
+      logger.info('🔄 Car Downloader Manager läuft im Vollmodus:');
+      logger.info('  - Web Dashboard: http://localhost:' + (process.env.WEB_PORT || 3000));
+      logger.info('  - Automatische Cron-Jobs: Alle ' + (process.env.CHECK_INTERVAL_HOURS || 6) + ' Stunden');
+      logger.info('  - Drücken Sie Ctrl+C zum Beenden');
+      
+      process.on('SIGINT', async () => {
+        logger.info('\n👋 Beende Car Downloader Manager...');
+        await manager.stopWebServer();
+        await manager.cleanup();
+        process.exit(0);
+      });
+      
+      return;
+    }
+    
     switch (command) {
       case 'bmw':
         logger.info('🚗 Starte nur BMW Provider...');
@@ -288,14 +311,15 @@ async function main() {
         
       default:
         logger.info('📖 Car Downloader Manager - Verwendung:');
-        logger.info('  node src/main.js bmw          - Starte nur BMW Provider');
-        logger.info('  node src/main.js vw            - Starte nur VW Provider');
-        logger.info('  node src/main.js all           - Starte alle Provider');
-        logger.info('  node src/main.js check         - Einmaliger Check aller Provider');
-        logger.info('  node src/main.js check bmw     - Einmaliger Check nur BMW');
-        logger.info('  node src/main.js check vw      - Einmaliger Check nur VW');
-        logger.info('  node src/main.js status        - Zeige Provider Status');
-        logger.info('  node src/main.js web           - Starte Web Dashboard');
+        logger.info('  node src/main.js                - Starte Web Dashboard mit Cron-Jobs (Standard)');
+        logger.info('  node src/main.js bmw            - Starte nur BMW Provider');
+        logger.info('  node src/main.js vw              - Starte nur VW Provider');
+        logger.info('  node src/main.js all             - Starte alle Provider');
+        logger.info('  node src/main.js check           - Einmaliger Check aller Provider');
+        logger.info('  node src/main.js check bmw       - Einmaliger Check nur BMW');
+        logger.info('  node src/main.js check vw        - Einmaliger Check nur VW');
+        logger.info('  node src/main.js status          - Zeige Provider Status');
+        logger.info('  node src/main.js web             - Starte Web Dashboard');
         break;
     }
     

@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { MetadataManager } from '../utils/MetadataManager.js';
+import cron from 'node-cron';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -20,9 +21,13 @@ class WebServer {
     this.downloadDir = process.env.DOWNLOAD_DIR || '/mnt/storagebox/providers';
     this.baseUrl = process.env.BASE_URL || `http://localhost:${this.port}`;
     this.metadataManager = new MetadataManager(this.downloadDir);
+    this.checkIntervalHours = parseInt(process.env.CHECK_INTERVAL_HOURS) || 6;
+    this.nextCheckTime = null;
+    this.cronJob = null;
     
     this.setupMiddleware();
     this.setupRoutes();
+    this.setupCronJob();
   }
 
   setupMiddleware() {
@@ -53,10 +58,100 @@ class WebServer {
     });
   }
 
+  setupCronJob() {
+    // Berechne nächste Check-Zeit
+    this.updateNextCheckTime();
+    
+    // Cron-Job alle 6 Stunden (0 */6 * * *)
+    const cronExpression = `0 */${this.checkIntervalHours} * * *`;
+    this.cronJob = cron.schedule(cronExpression, async () => {
+      console.log(`🔄 Automatischer Check gestartet um ${new Date().toLocaleString('de-DE')}`);
+      await this.runScheduledCheck();
+      this.updateNextCheckTime();
+    }, {
+      scheduled: false
+    });
+    
+    console.log(`⏰ Cron-Job konfiguriert: Alle ${this.checkIntervalHours} Stunden`);
+    console.log(`📅 Nächster Check: ${this.nextCheckTime?.toLocaleString('de-DE')}`);
+  }
+
+  updateNextCheckTime() {
+    const now = new Date();
+    const nextCheck = new Date(now.getTime() + (this.checkIntervalHours * 60 * 60 * 1000));
+    this.nextCheckTime = nextCheck;
+  }
+
+  async runScheduledCheck() {
+    try {
+      // Importiere die Provider dynamisch
+      const { BMWProvider } = await import('../providers/BMWProvider.js');
+      const { VWProvider } = await import('../providers/VWProvider.js');
+      
+      const providers = [];
+      
+      // Initialisiere Provider basierend auf Umgebungsvariablen
+      if (process.env.BMW_USERNAME && process.env.BMW_PASSWORD) {
+        const bmwProvider = new BMWProvider();
+        providers.push({ name: 'bmw', provider: bmwProvider });
+      }
+      
+      if (process.env.VW_USERNAME && process.env.VW_PASSWORD) {
+        const vwProvider = new VWProvider();
+        providers.push({ name: 'vw', provider: vwProvider });
+      }
+      
+      // Führe Check für alle Provider durch
+      for (const { name, provider } of providers) {
+        try {
+          console.log(`🔍 Führe automatischen Check für ${name.toUpperCase()} durch...`);
+          await provider.initialize();
+          await provider.checkForUpdates();
+          await provider.cleanup();
+          console.log(`✅ Automatischer Check für ${name.toUpperCase()} abgeschlossen`);
+        } catch (error) {
+          console.error(`❌ Fehler beim automatischen Check von ${name.toUpperCase()}: ${error.message}`);
+          try {
+            await provider.cleanup();
+          } catch (cleanupError) {
+            console.error(`❌ Fehler beim Aufräumen von ${name.toUpperCase()}: ${cleanupError.message}`);
+          }
+        }
+      }
+      
+      console.log(`✅ Automatischer Check abgeschlossen um ${new Date().toLocaleString('de-DE')}`);
+    } catch (error) {
+      console.error(`❌ Fehler beim automatischen Check: ${error.message}`);
+    }
+  }
+
+  startCronJob() {
+    if (this.cronJob && !this.cronJob.running) {
+      this.cronJob.start();
+      console.log('🔄 Cron-Job gestartet');
+    }
+  }
+
+  stopCronJob() {
+    if (this.cronJob && this.cronJob.running) {
+      this.cronJob.stop();
+      console.log('⏹️ Cron-Job gestoppt');
+    }
+  }
+
   setupRoutes() {
     // Health check (ohne Auth)
     this.app.get('/health', (req, res) => {
       res.json({ status: 'OK', timestamp: new Date().toISOString() });
+    });
+
+    this.app.get('/api/next-check', (req, res) => {
+      res.json({
+        nextCheckTime: this.nextCheckTime?.toISOString(),
+        nextCheckTimeFormatted: this.nextCheckTime?.toLocaleString('de-DE'),
+        checkIntervalHours: this.checkIntervalHours,
+        cronJobRunning: this.cronJob?.running || false
+      });
     });
 
     // API Routes
@@ -636,6 +731,10 @@ class WebServer {
         
         .stat-card.storage::before {
             background: linear-gradient(90deg, #1abc9c, #16a085);
+        }
+        
+        .stat-card.next-check::before {
+            background: linear-gradient(90deg, #f093fb, #f5576c);
         }
         
         .stat-card h3 {
@@ -1285,6 +1384,11 @@ class WebServer {
                 <div class="stat-value" id="diskUsage">-</div>
                 <div class="stat-label">Speicherplatzverbrauch</div>
             </div>
+            <div class="stat-card next-check">
+                <div class="stat-icon">⏰</div>
+                <div class="stat-value" id="nextCheckTime">-</div>
+                <div class="stat-label">Nächster Check</div>
+            </div>
         </div>
         
         <div class="providers-section">
@@ -1432,6 +1536,9 @@ class WebServer {
                 // Lade Speicherplatz-Informationen
                 await loadDiskUsage();
                 
+                // Lade nächste Check-Zeit
+                await loadNextCheckTime();
+                
                 // Lade Dateien für alle Provider
                 await loadAllFiles();
                 
@@ -1465,6 +1572,22 @@ class WebServer {
             }
             
             document.getElementById('totalFiles').textContent = totalFiles;
+        }
+
+        async function loadNextCheckTime() {
+            try {
+                const response = await fetch('/api/next-check');
+                const data = await response.json();
+                
+                if (data.nextCheckTimeFormatted) {
+                    document.getElementById('nextCheckTime').textContent = data.nextCheckTimeFormatted;
+                } else {
+                    document.getElementById('nextCheckTime').textContent = 'Nicht verfügbar';
+                }
+            } catch (error) {
+                console.error('Fehler beim Laden der nächsten Check-Zeit:', error);
+                document.getElementById('nextCheckTime').textContent = 'Fehler';
+            }
         }
 
         function updateProviders(providers) {
@@ -1776,10 +1899,23 @@ class WebServer {
         console.log(`🌐 Web Server läuft auf http://localhost:${this.port}`);
         console.log(`📊 Dashboard verfügbar unter: http://localhost:${this.port}`);
         console.log(`🔐 Basic Auth: ${process.env.WEB_USERNAME || 'admin'} / ${process.env.WEB_PASSWORD || 'admin123'}`);
+        
+        // Starte Cron-Job
+        this.startCronJob();
       });
     } catch (error) {
       console.error('❌ Fehler beim Starten des Web Servers:', error);
       process.exit(1);
+    }
+  }
+
+  async stop() {
+    try {
+      // Stoppe Cron-Job
+      this.stopCronJob();
+      console.log('🛑 Web Server gestoppt');
+    } catch (error) {
+      console.error('❌ Fehler beim Stoppen des Web Servers:', error);
     }
   }
 }

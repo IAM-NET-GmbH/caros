@@ -182,6 +182,9 @@ class CarDownloaderManager {
 
     try {
       // Web Server stoppen (falls eine stop-Methode existiert)
+      if (typeof this.webServer.stop === 'function') {
+        await this.webServer.stop();
+      }
       this.webServer = null;
       this.isWebMode = false;
       logger.info('🛑 Web Server gestoppt');

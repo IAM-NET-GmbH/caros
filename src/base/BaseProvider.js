@@ -435,6 +435,21 @@ export class BaseProvider {
     }
   }
 
+  async sendLoginFailureNotification(errorMessage) {
+    try {
+      this.logger.info(`📧 Sende Login-Fehler E-Mail-Benachrichtigung für ${this.providerName.toUpperCase()}`);
+      const success = await this.emailService.sendLoginFailureNotification(this.providerName, errorMessage);
+      
+      if (success) {
+        this.logger.info('✅ Login-Fehler E-Mail-Benachrichtigung erfolgreich gesendet');
+      } else {
+        this.logger.warn('⚠️ Login-Fehler E-Mail-Benachrichtigung konnte nicht gesendet werden');
+      }
+    } catch (error) {
+      this.logger.error('❌ Fehler beim Senden der Login-Fehler E-Mail-Benachrichtigung:', error);
+    }
+  }
+
   async cleanup() {
     if (this.browser) {
       await this.browser.close();

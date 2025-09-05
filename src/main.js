@@ -110,6 +110,14 @@ class CarDownloaderManager {
         logger.info(`✅ Check für ${providerName.toUpperCase()} abgeschlossen`);
       } catch (error) {
         logger.error(`❌ Fehler beim Check von ${providerName.toUpperCase()}: ${error.message}`);
+        
+        // Send email notification for critical errors during check
+        try {
+          await provider.sendLoginFailureNotification(`Kritischer Fehler beim Provider-Check: ${error.message}`);
+        } catch (emailError) {
+          logger.error(`❌ Fehler beim Senden der E-Mail-Benachrichtigung: ${emailError.message}`);
+        }
+        
         await provider.cleanup();
       }
     } else {
@@ -125,6 +133,14 @@ class CarDownloaderManager {
           logger.info(`✅ Check für ${providerName.toUpperCase()} abgeschlossen`);
         } catch (error) {
           logger.error(`❌ Fehler beim Check von ${providerName.toUpperCase()}: ${error.message}`);
+          
+          // Send email notification for critical errors during check
+          try {
+            await provider.sendLoginFailureNotification(`Kritischer Fehler beim Provider-Check: ${error.message}`);
+          } catch (emailError) {
+            logger.error(`❌ Fehler beim Senden der E-Mail-Benachrichtigung: ${emailError.message}`);
+          }
+          
           await provider.cleanup();
         }
       }

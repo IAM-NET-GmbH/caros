@@ -22,6 +22,7 @@
     "debug": "DEBUG=true node src/main.js",
     "test": "node test.js",
     "test:email": "node test-email.js",
+    "test:login-failure": "node test-login-failure-email.js",
     "send:email": "node send-test-email.js"
   },
   "dependencies": {

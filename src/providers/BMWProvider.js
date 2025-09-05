@@ -73,6 +73,10 @@ export class BMWProvider extends BaseProvider {
       
     } catch (error) {
       this.logger.error(`❌ Login fehlgeschlagen: ${error.message}`);
+      
+      // Send email notification for login failure
+      await this.sendLoginFailureNotification(error.message);
+      
       return false;
     }
   }
@@ -332,6 +336,7 @@ export class BMWProvider extends BaseProvider {
       const loginSuccess = await this.login();
       if (!loginSuccess) {
         this.logger.error('❌ Login fehlgeschlagen, überspringe Update-Check');
+        // Login failure notification is already sent in the login() method
         return;
       }
     }
